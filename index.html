@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taskboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e12;--surface:#17171d;--surface2:#1e1e27;--surface3:#26262f;
+  --border:#2e2e3a;--border2:#3a3a48;
+  --text:#f0eff5;--text2:#a8a7b5;--text3:#6b6a7a;
+  --todo:#534AB7;--prog:#0F6E56;--done:#3B6D11;
+  --accent:#7F77DD;--danger:#E24B4A;
+  --r:10px;--r2:14px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:'DM Serif Display',serif}
+
+/* AUTH */
+#auth-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;padding:2rem}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:2.5rem;width:100%;max-width:400px}
+.auth-logo{font-size:2.2rem;color:var(--accent);margin-bottom:.25rem;line-height:1}
+.auth-card h2{font-size:1.5rem;color:var(--text);margin-bottom:.2rem}
+.auth-sub{color:var(--text2);font-size:.875rem;margin-bottom:1.75rem}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:.75rem;font-weight:600;color:var(--text2);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.07em}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.7rem .9rem;color:var(--text);font-size:.95rem;font-family:inherit;transition:border-color .2s;outline:none}
+.field input:focus{border-color:var(--accent)}
+.field input::placeholder{color:var(--text3)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;border:none;border-radius:var(--r);padding:.7rem 1.25rem;font-size:.9rem;font-weight:500;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff;width:100%;margin-top:.5rem}
+.btn-primary:hover{background:#6b63cc}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);padding:.4rem .9rem;font-size:.82rem}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.err-msg{color:#E24B4A;font-size:.82rem;margin-top:.5rem;min-height:1.1rem}
+.ok-msg{color:#5DCAA5;font-size:.82rem;margin-top:.5rem;min-height:1.1rem}
+.auth-toggle{text-align:center;margin-top:1.25rem;font-size:.875rem;color:var(--text2)}
+.auth-toggle a{color:var(--accent);cursor:pointer;font-weight:500;text-decoration:none}
+.auth-toggle a:hover{text-decoration:underline}
+
+/* APP */
+#app-screen{display:none;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:1rem}
+.topbar-brand{display:flex;align-items:center;gap:.6rem}
+.brand-icon{color:var(--accent);font-size:1.3rem;font-family:'DM Serif Display',serif}
+.topbar h1{font-size:1.2rem;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.user-pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:.3rem .8rem;font-size:.8rem;color:var(--text2);white-space:nowrap}
+.user-pill b{color:var(--text)}
+
+/* BOARD HEADER */
+.board-header{padding:1.5rem 1.5rem .75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
+.board-title{font-size:1.8rem;color:var(--text)}
+.stats-row{display:flex;gap:.6rem;flex-wrap:wrap}
+.stat-chip{display:flex;align-items:center;gap:.35rem;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:.28rem .75rem;font-size:.76rem;color:var(--text2)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* KANBAN */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;padding:0 1.5rem 2rem;align-items:start}
+@media(max-width:680px){.board{grid-template-columns:1fr}}
+.column{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.col-todo{border-top:3px solid var(--todo)}
+.col-prog{border-top:3px solid var(--prog)}
+.col-done{border-top:3px solid var(--done)}
+.col-head{padding:.9rem 1rem .75rem;display:flex;align-items:center;justify-content:space-between}
+.col-label{display:flex;align-items:center;gap:.5rem;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.col-todo .col-label{color:#AFA9EC}
+.col-prog .col-label{color:#5DCAA5}
+.col-done .col-label{color:#97C459}
+.col-count{font-size:.72rem;padding:.18rem .5rem;border-radius:8px;font-weight:700}
+.col-todo .col-count{background:#26215C;color:#CECBF6}
+.col-prog .col-count{background:#085041;color:#9FE1CB}
+.col-done .col-count{background:#27500A;color:#C0DD97}
+.col-body{padding:0 .75rem .75rem}
+
+/* TASK CARD */
+.task-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem;margin-bottom:.6rem;transition:border-color .15s,transform .15s;position:relative}
+.task-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.task-name{font-weight:500;color:var(--text);font-size:.9rem;line-height:1.45;margin-bottom:.3rem}
+.task-desc{font-size:.78rem;color:var(--text2);line-height:1.5;margin-bottom:.6rem}
+.task-foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.move-btn{background:transparent;border:1px solid var(--border);color:var(--text3);font-size:.68rem;padding:.18rem .5rem;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.move-btn:hover{border-color:var(--border2);color:var(--text2);background:var(--surface3)}
+.card-actions{display:flex;gap:.3rem;opacity:0;transition:opacity .15s}
+.task-card:hover .card-actions{opacity:1}
+.icon-btn{background:transparent;border:none;cursor:pointer;color:var(--text3);padding:.2rem .3rem;border-radius:6px;font-size:.85rem;transition:all .15s;line-height:1;display:flex;align-items:center;justify-content:center;width:24px;height:24px}
+.icon-btn:hover{background:var(--surface3);color:var(--text)}
+.icon-btn.danger:hover{color:var(--danger)}
+
+.add-btn{width:100%;background:transparent;border:1px dashed var(--border);border-radius:var(--r);padding:.55rem;color:var(--text3);font-size:.82rem;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.35rem;transition:all .15s;margin-top:.25rem}
+.add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(127,119,221,.06)}
+
+.empty{padding:1.5rem .5rem;text-align:center;color:var(--text3);font-size:.82rem;opacity:.7}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:200;padding:1rem;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h3{font-size:1.15rem;margin-bottom:1.25rem;color:var(--text)}
+.modal-row{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.25rem}
+.modal textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.7rem .9rem;color:var(--text);font-size:.9rem;font-family:inherit;resize:vertical;min-height:75px;outline:none;transition:border-color .2s}
+.modal textarea:focus{border-color:var(--accent)}
+.modal textarea::placeholder{color:var(--text3)}
+.modal select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.7rem .9rem;color:var(--text);font-size:.9rem;font-family:inherit;outline:none;cursor:pointer;transition:border-color .2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b6a7a' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center}
+.modal select:focus{border-color:var(--accent)}
+.btn-save{background:var(--accent);color:#fff;border:none;border-radius:var(--r);padding:.65rem 1.2rem;font-size:.88rem;font-weight:500;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-save:hover{background:#6b63cc}
+.btn-save:disabled{opacity:.6;cursor:not-allowed}
+.btn-cancel{background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:var(--r);padding:.65rem 1rem;font-size:.88rem;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-cancel:hover{background:var(--surface2);color:var(--text)}
+.btn-del{background:var(--danger);color:#fff;border:none;border-radius:var(--r);padding:.65rem 1rem;font-size:.88rem;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-del:hover{background:#c43a39}
+
+/* SPINNER */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* LOADING SCREEN */
+#loading-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+#loading-screen p{color:var(--text2);font-size:.9rem}
+.big-spin{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="big-spin"></div>
+  <p>Loading…</p>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">⬡</div>
+    <h2 id="auth-heading">Welcome back</h2>
+    <p class="auth-sub" id="auth-subtext">Sign in to your workspace</p>
+
+    <!-- LOGIN -->
+    <div id="login-section">
+      <div class="field"><label>Email</label><input id="l-email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <p class="err-msg" id="l-err"></p>
+      <button class="btn btn-primary" id="l-btn" onclick="doLogin()">Sign in</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="reg-section" style="display:none">
+      <div class="field"><label>Your name</label><input id="r-name" type="text" placeholder="Jane Smith"></div>
+      <div class="field"><label>Email</label><input id="r-email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input id="r-pass" type="password" placeholder="At least 6 characters"></div>
+      <p class="err-msg" id="r-err"></p>
+      <p class="ok-msg" id="r-ok" style="display:none">✓ Account created! Signing you in…</p>
+      <button class="btn btn-primary" id="r-btn" onclick="doRegister()">Create account</button>
+    </div>
+
+    <p class="auth-toggle" id="auth-toggle-row">
+      Don't have an account? <a onclick="switchMode()">Register</a>
+    </p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none;flex-direction:column">
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-icon">⬡</span>
+      <h1>Taskboard</h1>
+    </div>
+    <div class="topbar-right">
+      <span class="user-pill">Signed in as <b id="nav-user"></b></span>
+      <button class="btn-ghost btn" onclick="logout()">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="board-header">
+    <h2 class="board-title">My Tasks</h2>
+    <div class="stats-row">
+      <span class="stat-chip"><span class="dot" style="background:var(--todo)"></span><span id="s-todo">0</span>&nbsp;todo</span>
+      <span class="stat-chip"><span class="dot" style="background:var(--prog)"></span><span id="s-prog">0</span>&nbsp;in progress</span>
+      <span class="stat-chip"><span class="dot" style="background:var(--done)"></span><span id="s-done">0</span>&nbsp;done</span>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="column col-todo">
+      <div class="col-head">
+        <span class="col-label">⬡ Todo</span>
+        <span class="col-count" id="c-todo">0</span>
+      </div>
+      <div class="col-body" id="b-todo"></div>
+    </div>
+    <div class="column col-prog">
+      <div class="col-head">
+        <span class="col-label">◎ In Progress</span>
+        <span class="col-count" id="c-prog">0</span>
+      </div>
+      <div class="col-body" id="b-prog"></div>
+    </div>
+    <div class="column col-done">
+      <div class="col-head">
+        <span class="col-label">✓ Done</span>
+        <span class="col-count" id="c-done">0</span>
+      </div>
+      <div class="col-body" id="b-done"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TASK MODAL -->
+<div class="overlay" id="task-overlay" style="display:none" onclick="if(event.target===this)closeTaskModal()">
+  <div class="modal">
+    <h3 id="modal-heading">New task</h3>
+    <div class="field"><label>Title</label><input id="t-name" type="text" placeholder="What needs doing?" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:.7rem .9rem;color:var(--text);font-size:.9rem;font-family:inherit;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></div>
+    <div class="field"><label>Description</label><textarea id="t-desc" placeholder="Optional details…"></textarea></div>
+    <div class="field"><label>Stage</label><select id="t-stage"><option value="todo">Todo</option><option value="prog">In Progress</option><option value="done">Done</option></select></div>
+    <p class="err-msg" id="t-err"></p>
+    <div class="modal-row">
+      <button class="btn-cancel" onclick="closeTaskModal()">Cancel</button>
+      <button class="btn-save" id="t-save" onclick="submitTask()">Add task</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="overlay" id="del-overlay" style="display:none" onclick="if(event.target===this)closeDelModal()">
+  <div class="modal">
+    <h3>Delete this task?</h3>
+    <p style="color:var(--text2);font-size:.88rem;margin:.4rem 0 1rem">This action cannot be undone.</p>
+    <div class="modal-row">
+      <button class="btn-cancel" onclick="closeDelModal()">Cancel</button>
+      <button class="btn-del" id="del-confirm" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Change this to your deployed backend URL when hosting
+const API = 'https://taskmanager-api-cy8p.onrender.com';
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('tm_token');
+let currentUser = null;
+let tasks = [];
+let editId = null;
+let deleteId = null;
+let isLoginMode = true;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API + path, { headers, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function show(id) { document.getElementById(id).style.display = 'flex'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function setHide(id) { document.getElementById(id).style.display = 'none'; }
+function setText(id, t) { document.getElementById(id).textContent = t; }
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+async function boot() {
+  if (token) {
+    try {
+      currentUser = await api('/me');
+      showApp();
+      return;
+    } catch {
+      token = null;
+      localStorage.removeItem('tm_token');
+    }
+  }
+  hide('loading-screen');
+  show('auth-screen');
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function switchMode() {
+  isLoginMode = !isLoginMode;
+  document.getElementById('login-section').style.display = isLoginMode ? 'block' : 'none';
+  document.getElementById('reg-section').style.display = isLoginMode ? 'none' : 'block';
+  setText('auth-heading', isLoginMode ? 'Welcome back' : 'Create account');
+  setText('auth-subtext', isLoginMode ? 'Sign in to your workspace' : 'Free forever, no credit card');
+  document.getElementById('auth-toggle-row').innerHTML = isLoginMode
+    ? 'Don\'t have an account? <a onclick="switchMode()">Register</a>'
+    : 'Already have an account? <a onclick="switchMode()">Sign in</a>';
+  setText('l-err', '');
+  setText('r-err', '');
+  document.getElementById('r-ok').style.display = 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const errEl = document.getElementById('l-err');
+  const btn = document.getElementById('l-btn');
+  if (!email || !pass) { errEl.textContent = 'Please fill all fields.'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const data = await api('/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem('tm_token', token);
+    errEl.textContent = '';
+    showApp();
+  } catch (e) {
+    errEl.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
+async function doRegister() {
+  const name = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  const pass = document.getElementById('r-pass').value;
+  const errEl = document.getElementById('r-err');
+  const okEl = document.getElementById('r-ok');
+  const btn = document.getElementById('r-btn');
+  if (!name || !email || !pass) { errEl.textContent = 'Please fill all fields.'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await api('/register', { method: 'POST', body: JSON.stringify({ name, email, password: pass }) });
+    errEl.textContent = '';
+    okEl.style.display = 'block';
+    // Auto login
+    const data = await api('/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem('tm_token', token);
+    setTimeout(showApp, 600);
+  } catch (e) {
+    errEl.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Create account';
+  }
+}
+
+function logout() {
+  token = null;
+  currentUser = null;
+  tasks = [];
+  localStorage.removeItem('tm_token');
+  hide('app-screen');
+  document.getElementById('l-email').value = '';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('l-err').textContent = '';
+  isLoginMode = true;
+  document.getElementById('login-section').style.display = 'block';
+  document.getElementById('reg-section').style.display = 'none';
+  setText('auth-heading', 'Welcome back');
+  setText('auth-subtext', 'Sign in to your workspace');
+  show('auth-screen');
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+async function showApp() {
+  hide('loading-screen');
+  hide('auth-screen');
+  setText('nav-user', currentUser.name || currentUser.email);
+  document.getElementById('app-screen').style.display = 'flex';
+  await loadTasks();
+}
+
+async function loadTasks() {
+  try {
+    tasks = await api('/tasks');
+    renderBoard();
+  } catch (e) {
+    if (e.message.includes('401')) logout();
+  }
+}
+
+function renderBoard() {
+  const cols = [
+    { id: 'todo', body: 'b-todo', count: 'c-todo', stat: 's-todo', next: 'prog', nextLabel: '→ Start' },
+    { id: 'prog', body: 'b-prog', count: 'c-prog', stat: 's-prog', next: 'done', nextLabel: '→ Done' },
+    { id: 'done', body: 'b-done', count: 'c-done', stat: 's-done', next: 'todo', nextLabel: '↺ Reset' },
+  ];
+  cols.forEach(col => {
+    const list = tasks.filter(t => t.stage === col.id);
+    const n = list.length;
+    setText(col.count, n);
+    setText(col.stat, n);
+    const el = document.getElementById(col.body);
+    el.innerHTML = (list.length === 0 ? '<p class="empty">No tasks here yet</p>' : '') +
+      list.map(t => `
+        <div class="task-card">
+          <div class="task-name">${esc(t.name)}</div>
+          ${t.description ? `<div class="task-desc">${esc(t.description)}</div>` : ''}
+          <div class="task-foot">
+            <button class="move-btn" onclick="moveTask('${t.id}','${col.next}')">${col.nextLabel}</button>
+            <div class="card-actions">
+              <button class="icon-btn" onclick="openEdit('${t.id}')" title="Edit">✎</button>
+              <button class="icon-btn danger" onclick="openDelete('${t.id}')" title="Delete">✕</button>
+            </div>
+          </div>
+        </div>
+      `).join('') +
+      `<button class="add-btn" onclick="openAdd('${col.id}')">+ Add task</button>`;
+  });
+}
+
+// ─── TASK CRUD ────────────────────────────────────────────────────────────────
+function openAdd(stage = 'todo') {
+  editId = null;
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-stage').value = stage;
+  document.getElementById('t-err').textContent = '';
+  document.getElementById('t-save').textContent = 'Add task';
+  setText('modal-heading', 'New task');
+  show('task-overlay');
+  setTimeout(() => document.getElementById('t-name').focus(), 50);
+}
+
+function openEdit(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  editId = id;
+  document.getElementById('t-name').value = t.name;
+  document.getElementById('t-desc').value = t.description || '';
+  document.getElementById('t-stage').value = t.stage;
+  document.getElementById('t-err').textContent = '';
+  document.getElementById('t-save').textContent = 'Save changes';
+  setText('modal-heading', 'Edit task');
+  show('task-overlay');
+  setTimeout(() => document.getElementById('t-name').focus(), 50);
+}
+
+function closeTaskModal() { hide('task-overlay'); }
+
+async function submitTask() {
+  const name = document.getElementById('t-name').value.trim();
+  const description = document.getElementById('t-desc').value.trim();
+  const stage = document.getElementById('t-stage').value;
+  const errEl = document.getElementById('t-err');
+  const btn = document.getElementById('t-save');
+  if (!name) { errEl.textContent = 'Title is required.'; return; }
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    if (editId) {
+      await api(`/tasks/${editId}`, { method: 'PUT', body: JSON.stringify({ name, description, stage }) });
+    } else {
+      await api('/tasks', { method: 'POST', body: JSON.stringify({ name, description, stage }) });
+    }
+    closeTaskModal();
+    await loadTasks();
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+async function moveTask(id, stage) {
+  try {
+    await api(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify({ stage }) });
+    await loadTasks();
+  } catch {}
+}
+
+function openDelete(id) {
+  deleteId = id;
+  show('del-overlay');
+}
+function closeDelModal() { hide('del-overlay'); deleteId = null; }
+
+async function confirmDelete() {
+  if (!deleteId) return;
+  const btn = document.getElementById('del-confirm');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await api(`/tasks/${deleteId}`, { method: 'DELETE' });
+    closeDelModal();
+    await loadTasks();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
+}
+
+// ─── KEYBOARD ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeTaskModal(); closeDelModal(); }
+});
+document.getElementById('t-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitTask();
+});
+document.getElementById('l-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
